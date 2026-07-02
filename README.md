@@ -1,118 +1,392 @@
-# QuyNhon AI — SoDEX Trading Operating System
+# QuyNhon AI - One-Person On-Chain Finance Operating System
 
-A live-only crypto trading web app for SoDEX buildathon workflows.
+QuyNhon AI is a live-only on-chain finance dashboard built for the SoSoValue 3rd Wave Buildathon on Akindo.
 
-## Core modules
-- Spot Trading terminal: live chart, order book, market trades, order ticket.
-- Futures-style terminal: leverage slider, cross/isolated mode, TP/SL and server preview.
-- Automation Center: timed scan / preview / live-mode schedule config.
-- Coin Universe: hundreds of live coins and real icons from CoinGecko.
-- SoSoValue Research Desk: live news/research feed and AI report generation through the ChainOpera/OpenAI-compatible router.
-- Signal Engine: momentum, liquidity, risk and conviction scores from live market data.
-- Portfolio OS: locked until a real wallet is connected.
+It combines SoSoValue research context, SoDEX market/account/trading APIs, AI-assisted market reports, and a local realtime trading bot control panel into one practical workspace for a solo trader or small on-chain finance operator.
 
-## Live-only rule
-The UI does not render fake prices, fake wallets, fake portfolio balances or fake news. If a provider does not return data, the UI displays unavailable states.
+Production demo:
 
-## Vercel Environment Variables
+```text
+https://jinchain.vercel.app
+```
+
+GitHub:
+
+```text
+https://github.com/Jinchainne/QuyNhon
+```
+
+## Submission Metadata
+
+| Field | Value |
+| --- | --- |
+| Buildathon | SoSoValue 3rd Wave on Akindo / WaveHack |
+| Category | Tools |
+| Built with | SoSoValue, SoDEX, ValueChain-ready architecture, AI |
+| Tags | SoSoValue, SoDEX, ValueChain, Agentic, One-Person, On-Chain Finance, AI x Web3 |
+| Primary user | Solo trader, research operator, or small on-chain finance desk |
+| Demo mode | Live data with preview-first trading; live execution is gated |
+
+## Buildathon Fit
+
+The 3rd Wave prompt is about building a one-person on-chain finance business with SoSoValue data, news feeds, index/tools, trading APIs, and high-performance L1 infrastructure.
+
+QuyNhon AI focuses on the operator experience:
+
+- Read live market data and SoSoValue research in one place.
+- Convert market context into an AI report for decision support.
+- Preview spot/futures orders before submitting.
+- Gate live trading behind explicit admin, wallet, and risk controls.
+- Control a local realtime SoDEX trading bot without exposing private keys in the browser.
+
+## Judge Demo Path
+
+1. Open `https://jinchain.vercel.app`.
+2. Open **API Health** and confirm the configured providers.
+3. Open **Market Pulse** to inspect live coin universe, prices, volume, and momentum.
+4. Open **News Feed** and **Market Intelligence** to see SoSoValue-powered research context.
+5. Open **AI Reports** and generate a market report from live context.
+6. Open **Futures Trading** or **Spot Trading**, fill a small order, and click **Preview**.
+7. Open **Automation** to see scheduled preview/live workflow controls.
+8. Open **Local Trade Bot** to see the bridge panel for the local JINBOT_SODEX CROSS runtime.
+
+For safety, public demos should use preview/paper mode unless the operator intentionally enables live trading and has configured the admin wallet, admin secret, and SoDEX server keys.
+
+## What It Does
+
+### Live Trading Terminal
+
+- Spot and futures-style trading screens.
+- Market, limit, stop, and TWAP intent fields.
+- Leverage, margin mode, time-in-force, TP, SL, and reduce-only auto-close support.
+- Preview route that returns an execution plan before any live submission.
+- Live submission route gated by server env, admin secret, connected wallet, and max risk settings.
+
+### SoSoValue Research Desk
+
+- Pulls live SoSoValue research/news feed.
+- Combines SoSoValue context with market structure and signal candidates.
+- Generates AI reports through an OpenAI-compatible AI router.
+- Designed for a judge to see the app's data/API integration quickly, without reading code.
+
+### Signal Engine
+
+- Uses live market data to rank momentum, liquidity, risk, and conviction.
+- Shows heatmaps and ranking tables for quick scanning.
+- Does not invent prices, wallets, portfolio balances, or news.
+
+### Local Trade Bot Panel
+
+The **Local Trade Bot** menu controls a separate local JINBOT_SODEX CROSS process.
+
+This matters because realtime trading loops, Telegram polling, local logs, and wallet-side automation should run as a long-lived local process, not inside a Vercel serverless function.
+
+Supported controls:
+
+- Start/stop futures bot.
+- Start/stop spot bot.
+- Start/stop all configured bots.
+- Close futures position.
+- Read local PnL, events, trades, position data, trade settings, and bot status.
+
+### Jinbot Cross Signals
+
+The **Jinbot Cross Signals** menu is a companion bridge for:
+
+- Local dashboard status.
+- Local signals from HTTP endpoints.
+- Optional state file reading.
+- Optional Telegram command forwarding.
+
+## Architecture
+
+```text
+Browser UI
+  |
+  | Next.js app router
+  v
+Vercel / Node runtime
+  |
+  |-- /api/live         -> CoinGecko + SoDEX + SoSoValue aggregate context
+  |-- /api/trade        -> terminal data for selected market
+  |-- /api/news         -> SoSoValue research/news
+  |-- /api/copilot      -> AI report generation
+  |-- /api/execution    -> preview/live execution gate
+  |-- /api/automation   -> scheduled preview/live execution route
+  |-- /api/jinbot       -> local bot bridge or Telegram fallback
+  |
+  v
+External providers
+  |-- SoSoValue API
+  |-- SoDEX API
+  |-- AI router
+  |-- Public market data providers
+
+Optional local runtime
+  |
+  |-- JINBOT_SODEX CROSS local process
+  |-- Local dashboard bridge on http://127.0.0.1:8787
+  |-- Telegram bot polling
+  |-- Local trade logs/state
+```
+
+## Data And API Integrations
+
+| Area | Integration | Purpose |
+| --- | --- | --- |
+| Research | SoSoValue API | News/research context for market intelligence and AI reports |
+| Trading | SoDEX API | Account lookup, market data, preview/live order execution path |
+| AI | OpenAI-compatible router | Report generation from live context |
+| Market context | Public market data providers | Coin universe, prices, order book, candles, trades |
+| Local automation | JINBOT_SODEX CROSS | Realtime bot session, Telegram controls, local trade loop |
+
+## Live-Only Rule
+
+The app is intentionally live-only.
+
+If a provider does not return data, the UI shows an unavailable state instead of fake charts, fake prices, fake wallet balances, fake news, or fabricated portfolio data.
+
+This makes the demo less flashy than a mockup, but more honest for judging real product readiness.
+
+## Security Model
+
+Live execution requires all of the following:
+
+- `ENABLE_LIVE_TRADING=true`
+- `ADMIN_SECRET` entered in the UI
+- connected wallet equals `ADMIN_WALLET`
+- SoDEX server credentials are present
+- order does not exceed `MAX_ORDER_NOTIONAL_USD`
+- futures leverage does not exceed `MAX_LEVERAGE`
+
+Secrets stay server-side:
+
+- private keys are never returned to browser responses
+- signatures, nonces, and payload hashes are not exposed
+- `.env`, `.env.local`, `.vercel`, and `.local` are ignored
+- local bot files and trade logs are not committed
+
+Public buildathon demos should normally keep:
+
+```env
+ENABLE_LIVE_TRADING=false
+```
+
+## Environment Variables
+
+Use Vercel Environment Variables for production. Do not commit real values.
+
+### Required For Full Demo
+
 ```env
 SOSOVALUE_API_KEY=
+
 SODEX_API_KEY_NAME=
 SODEX_PUBLIC_KEY=
 SODEX_API_PRIVATE_KEY=
-SODEX_PRIVATE_KEY=
-SODEX_WALLET_PRIVATE_KEY=
+
 AI_API_KEY=
 AI_BASE_URL=https://router.chainopera.ai/v1
 AI_MODEL=Qwen3-32B
-NEXT_PUBLIC_APP_URL=
-ENABLE_LIVE_TRADING=false
+
+NEXT_PUBLIC_APP_URL=https://jinchain.vercel.app
 ```
 
-Keep private keys only in Vercel Environment Variables. Never push `.env` to GitHub.
-
-## Deploy
-```bash
-npm install --legacy-peer-deps --registry=https://registry.npmjs.org/
-npm run build
-```
-
-## Trade execution and automation
-
-This build contains two execution paths:
-
-1. **Manual trade ticket** in the Trade Terminal: Spot/Futures selector, buy/sell or long/short, volume, leverage, TP/SL, time-in-force, preview and execute buttons.
-2. **Automation Center**: browser scheduler runs while the terminal page is open. It can auto-preview or auto-submit to the server execution route if `ENABLE_LIVE_TRADING=true`.
-
-Server-side scheduled automation is also available through `/api/automation`. Configure `AUTO_TRADE_CONFIG` in Vercel and the included Vercel Cron will call it hourly. Live submission still requires `ENABLE_LIVE_TRADING=true` and valid SoDEX server-side keys.
-
-Private keys, signatures, nonces, and payload hashes are never returned to the browser.
-
-## Spot Auto-Close 1-3 Minutes
-
-The Trade Ticket includes a **Spot Auto Close** switch. When enabled, any Spot entry creates an opposite-side close task after a randomized delay between the configured min/max minutes, default 1-3 minutes.
-
-Safety model:
-- Paper Mode is default.
-- Live close orders require `ENABLE_LIVE_TRADING=true` and Live Trading armed in the UI.
-- Private keys stay server-side in Vercel Environment Variables.
-- Browser-based 1-3 minute timing requires the terminal tab to remain open. For guaranteed background execution, connect an external queue/database or run a Vercel Cron strategy using `AUTO_TRADE_CONFIG`.
-
-
-## Live Trading Security
-
-Live execution requires all conditions at the same time:
-
-1. `ENABLE_LIVE_TRADING=true` in Vercel.
-2. `ADMIN_SECRET` entered in the terminal UI.
-3. Connected wallet equals `ADMIN_WALLET`.
-4. SoDEX server credentials are configured.
-
-If one condition fails, the app returns preview/paper mode only. The server never returns private keys, signatures, nonces, admin secret, or payload hashes to the browser.
-
-For scheduled automation, set `AUTOMATION_SECRET` and update `vercel.json` cron path to `/api/automation?secret=<your-secret>`. Keep `ENABLE_LIVE_TRADING=false` for public demos unless you are actively supervising.
-
-## Futures Auto-Close and Risk Guard
-
-This version adds the missing futures workflow:
-
-- Futures Auto Close ON/OFF in the Trade Ticket.
-- Close-after-minutes field for a reduce-only opposite-side close order.
-- TP/SL values are included in the server preview risk plan.
-- `MAX_LEVERAGE` blocks live execution above your configured leverage cap.
-- `MAX_ORDER_NOTIONAL_USD` blocks live execution above your configured notional cap.
-
-Recommended Vercel safety values for a public buildathon demo:
+### Live Trading Gate
 
 ```env
 ENABLE_LIVE_TRADING=false
+ADMIN_SECRET=
+ADMIN_WALLET=
+AUTOMATION_SECRET=
 MAX_ORDER_NOTIONAL_USD=50
-MAX_LEVERAGE=3
+MAX_LEVERAGE=5
 ```
 
-For supervised private live testing only:
+### Optional Automation Config
 
 ```env
-ENABLE_LIVE_TRADING=true
-ADMIN_SECRET=<long-secret>
-ADMIN_WALLET=<your-wallet-address>
-MAX_ORDER_NOTIONAL_USD=50
-MAX_LEVERAGE=3
+AUTO_TRADE_CONFIG={"market":"BTCUSDT","product":"futures","side":"long","orderType":"limit","amount":"0.001","leverage":2,"futuresAutoClose":"time","futuresCloseMinutes":"15","action":"preview"}
 ```
 
-## JINBOT_SODEX CROSS bridge
-
-This build adds a dedicated **Jinbot Cross** trade-signal menu inside QuyNhon AI. The panel can read status/signals from a local Jinbot HTTP bridge and can forward commands to the bot through either the local bridge or Telegram.
-
-Recommended local setup:
+### Optional Local Bot Bridge
 
 ```env
 JINBOT_BRIDGE_URL=http://127.0.0.1:8787
 JINBOT_BRIDGE_SECRET=
-JINBOT_STATE_PATH=<optional full path to bot_state.json>
-JINBOT_PANEL_SECRET=<optional UI command password, falls back to ADMIN_SECRET>
-JINBOT_TELEGRAM_BOT_TOKEN=<telegram bot token if you want command forwarding>
-JINBOT_TELEGRAM_CHAT_ID=<your telegram chat id>
+JINBOT_STATE_PATH=
+JINBOT_PANEL_SECRET=
+JINBOT_TELEGRAM_BOT_TOKEN=
+JINBOT_TELEGRAM_CHAT_ID=
 ```
 
-The app tries these local endpoints automatically: `/api/status`, `/status`, `/health`, `/api/state`, `/api/signals`, `/signals`, `/api/positions`, `/positions`, `/api/command`, and `/command`. If Jinbot writes `bot_state.json`, set `JINBOT_STATE_PATH` so QuyNhon AI can read the latest local signals directly. If Jinbot only works through Telegram, set the Telegram variables and use the command box in the Jinbot Cross panel.
+Aliases supported by the server:
+
+```env
+SODEX_PRIVATE_KEY=
+SODEX_WALLET_PRIVATE_KEY=
+CHAINOPERA_API_KEY=
+OPENAI_API_KEY=
+JINBOT_LOCAL_URL=
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=
+```
+
+Avoid adding unused local-only bot settings to Vercel unless the web app actually reads them. The Next.js app does not need dashboard-only values such as local hold timers, farm TP/SL values, log paths, or bot volume mode flags.
+
+## Local Development
+
+```bash
+npm install --legacy-peer-deps
+npm run dev
+```
+
+Open:
+
+```text
+http://localhost:3000
+```
+
+Production build:
+
+```bash
+npm run build
+npm run start
+```
+
+## Running The Local Realtime Trade Bot
+
+The realtime trade bot is intentionally a separate local process. Start it only when you want the local automation loop and Telegram polling to run.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start-jinbot-local.ps1
+```
+
+Default archive path used by the script:
+
+```text
+E:\TOOL FULL 03-1-2026\SOSO TRADE API\JINBOT_SODEX CROSS.zip
+```
+
+The script extracts the bot under `.local`, sets:
+
+```env
+DASHBOARD_PORT=8787
+JINBOT_BRIDGE_URL=http://127.0.0.1:8787
+```
+
+and runs:
+
+```bash
+node dist/bot.js
+```
+
+When the local bot is running, open **Local Trade Bot** in QuyNhon AI. The panel will read the bridge and enable start/stop/close controls.
+
+Important for Vercel:
+
+- `127.0.0.1` on Vercel is Vercel's server, not your laptop.
+- To control a local bot from the deployed website, expose the local dashboard with Cloudflare Tunnel, ngrok, or another secure tunnel.
+- Then set `JINBOT_BRIDGE_URL` in Vercel to the public tunnel URL.
+
+## Deployment
+
+Vercel is the recommended deployment target.
+
+```bash
+vercel link --project jin
+vercel deploy --prod
+```
+
+This repo includes:
+
+```text
+vercel.json
+```
+
+with:
+
+- Next.js framework detection
+- build command
+- install command using `--legacy-peer-deps`
+- optional cron path for automation
+
+If using the cron route, configure `AUTOMATION_SECRET` and avoid hardcoding real secrets into `vercel.json`.
+
+## Verification
+
+Run local build:
+
+```bash
+npm run build
+```
+
+Check live health:
+
+```bash
+curl https://jinchain.vercel.app/api/health
+```
+
+Check local bot bridge route:
+
+```bash
+curl https://jinchain.vercel.app/api/jinbot
+```
+
+Optional live-only verification script:
+
+```bash
+npm run verify:live
+```
+
+## Project Structure
+
+```text
+app/
+  api/
+    automation/       scheduled preview/live route
+    copilot/          AI report generation
+    execution/        order preview/live execution gate
+    health/           provider/env health report
+    jinbot/           local bot / Telegram bridge
+    live/             aggregated live market context
+    sodex/            SoDEX account and market endpoints
+    sosovalue/        SoSoValue news endpoint
+  lib/
+    providers.ts      provider clients, trading gate, execution helpers
+  page.tsx            full dashboard UI
+public/               visual assets
+scripts/
+  start-jinbot-local.ps1
+  verify-live-only.mjs
+vercel.json
+```
+
+## Judging Criteria Mapping
+
+| Criterion | Where to look |
+| --- | --- |
+| User value and practical impact | One workspace for research, AI report generation, SoDEX preview/live trading, automation, and local bot control |
+| Functionality and working demo | Production site, API health, Market Pulse, AI Reports, Trade Ticket, Local Trade Bot |
+| Logic, workflow, product design | Live-only rule, explicit preview-first workflow, separate local runtime for realtime bot work |
+| Data/API integration | SoSoValue news, SoDEX account/markets/execution, AI router, live market data, Telegram/local bridge |
+| UX and clarity | Sidebar modules, command search, risk copy in trade ticket, visible bridge diagnostics |
+
+## Known Limitations
+
+- The local realtime bot must run outside Vercel.
+- A deployed Vercel app cannot call a laptop's `127.0.0.1`; use a secure tunnel for remote control.
+- Live trading depends on valid SoDEX credentials and the operator intentionally enabling all gates.
+- Browser-based auto-close timers require the browser tab to remain open unless moved to a durable queue or cron-backed workflow.
+
+## Roadmap
+
+- Persistent trade history database.
+- Secure tunnel onboarding helper for local bot control.
+- Better local bot authentication handshake.
+- Queue-backed automation jobs.
+- Portfolio analytics once wallet/account coverage is expanded.
+
+## License
+
+Buildathon prototype. Keep private keys, exchange credentials, and bot logs out of source control.
