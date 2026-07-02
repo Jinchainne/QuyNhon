@@ -89,6 +89,32 @@ Supported controls:
 - Close futures position.
 - Read local PnL, events, trades, position data, trade settings, and bot status.
 
+### Realtime Local Runtime Evidence
+
+The local trading layer has been tested as a running desktop process with Telegram controls and a browser dashboard. The screenshots used in the submission show three important proof points:
+
+| Evidence | What it proves |
+| --- | --- |
+| Telegram bot control menu | The operator can start/stop all bots, start/stop futures, start/stop spot, request status, and check positions from Telegram. A filled short entry on `SPCX-USD` shows the bot producing live execution feedback with session PnL and session volume. |
+| Windows terminal runtime | `JINBOT_SODEX CROSS` runs as a long-lived local Node process, opens its `.env`, starts Telegram polling, loads local state, and connects to SoDEX mainnet API endpoints. |
+| Local dashboard | The local dashboard exposes trade settings, farm/trade mode, futures/spot controls, max loss, close position, session PnL, trading volume, wallet balance, open position, and bot status. |
+
+If adding the screenshots directly to this repo, save them under:
+
+```text
+docs/screenshots/telegram-control.png
+docs/screenshots/local-terminal-runtime.png
+docs/screenshots/local-dashboard.png
+```
+
+Then uncomment or add these Markdown image links:
+
+```md
+![Telegram control menu](docs/screenshots/telegram-control.png)
+![Local terminal runtime](docs/screenshots/local-terminal-runtime.png)
+![Local dashboard](docs/screenshots/local-dashboard.png)
+```
+
 ### Jinbot Cross Signals
 
 The **Jinbot Cross Signals** menu is a companion bridge for:
