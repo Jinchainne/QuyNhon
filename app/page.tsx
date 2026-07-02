@@ -354,7 +354,7 @@ function ApiHealth({health}:any){ return <Card><h3 className="text-xl font-black
 function JinbotCrossPanel({data,refresh,command,setCommand,secret,setSecret,send,busy,result}:any){
   const signals = Array.isArray(data?.signals) ? data.signals : [];
   const latest = signals[0];
-  const quick = ['/status','/signal','/positions','/pnl','/pause','/resume','/help'];
+  const quick = ['/status','/start_perps','/stop_perps','/start_spot','/stop_spot','/start_bot','/stop_bot','/check','/close_position','/set_max_loss 0.25'];
   const statusText = data?.ok ? 'Connected' : 'Waiting for local Jinbot';
   return <div className="grid grid-cols-12 gap-4">
     <Card className="col-span-12 xl:col-span-8">

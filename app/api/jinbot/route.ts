@@ -9,9 +9,9 @@ type FetchResult = { ok: boolean; status: number; data: any; url: string; error?
 
 const jsonHeaders = { accept: 'application/json', 'content-type': 'application/json' };
 const DEFAULT_JINBOT_BASE = 'http://127.0.0.1:8787';
-const STATUS_PATHS = ['/api/status', '/status', '/health', '/api/health', '/api/state', '/state', '/api/dashboard'];
+const STATUS_PATHS = ['/api/bots/status', '/api/pnl', '/api/control/status', '/api/status', '/status', '/health', '/api/health', '/api/debug/ping', '/api/state', '/state', '/api/dashboard'];
 const SIGNAL_PATHS = ['/api/signals', '/signals', '/api/latest-signal', '/latest-signal', '/api/cross/signals', '/cross/signals'];
-const POSITION_PATHS = ['/api/positions', '/positions', '/api/orders', '/orders'];
+const POSITION_PATHS = ['/api/position', '/api/positions', '/positions', '/api/orders', '/orders'];
 const COMMAND_PATHS = ['/api/command', '/command', '/api/telegram/command', '/telegram/command', '/api/bot/command'];
 
 function getBaseUrl() {
@@ -153,7 +153,66 @@ async function sendTelegramCommand(command: string) {
   return { ok: result.ok, configured: true, status: result.status, data: result.ok ? result.data : undefined, error: result.ok ? undefined : (result.error || result.data) };
 }
 
+function normalizeCommand(command: string) {
+  const [rawName, ...args] = command.trim().replace(/^\/+/, '').split(/\s+/).filter(Boolean);
+  const aliases: Record<string, string> = {
+    start: 'start_bot',
+    stop: 'stop_bot',
+    pause: 'stop_bot',
+    resume: 'start_bot',
+    signal: 'status',
+    signals: 'status',
+    positions: 'check',
+    position: 'check',
+    pnl: 'status',
+    help: 'status',
+  };
+  const name = aliases[rawName?.toLowerCase() || ''] || rawName?.toLowerCase() || '';
+  return { name, args };
+}
+
+function dashboardRequestFor(command: string) {
+  const { name, args } = normalizeCommand(command);
+  const amount = Number(args[0]);
+  const bodyWithAmount = Number.isFinite(amount) && amount > 0 ? { amount } : {};
+  const routes: Record<string, { method: 'GET' | 'POST'; path: string; body?: any }> = {
+    status: { method: 'GET', path: '/api/bots/status' },
+    check: { method: 'GET', path: '/api/bots/status' },
+    check_perps: { method: 'GET', path: '/api/bots/status' },
+    check_spot: { method: 'GET', path: '/api/bots/status' },
+    trades: { method: 'GET', path: '/api/trades' },
+    start_bot: { method: 'POST', path: '/api/bots/start_all' },
+    stop_bot: { method: 'POST', path: '/api/bots/stop_all' },
+    start_perps: { method: 'POST', path: '/api/bots/perps/start' },
+    stop_perps: { method: 'POST', path: '/api/bots/perps/stop' },
+    start_spot: { method: 'POST', path: '/api/bots/spot/start' },
+    stop_spot: { method: 'POST', path: '/api/bots/spot/stop' },
+    close_position: { method: 'POST', path: '/api/bots/perps/close_position' },
+    close_perps: { method: 'POST', path: '/api/bots/perps/close_position' },
+    close_spot: { method: 'POST', path: '/api/bots/spot/close_position' },
+    set_max_loss: { method: 'POST', path: '/api/bots/perps/set_max_loss', body: bodyWithAmount },
+    set_mode: { method: 'POST', path: '/api/control/set_mode', body: { mode: args[0] } },
+  };
+  return routes[name] || null;
+}
+
+async function sendDashboardCommand(base: string, command: string) {
+  const route = dashboardRequestFor(command);
+  if (!route) return { ok: false, skipped: true, reason: 'No direct dashboard endpoint for this command.' };
+  const bridgeSecret = process.env.JINBOT_BRIDGE_SECRET || '';
+  const headers: Record<string, string> = bridgeSecret ? { 'x-jinbot-secret': bridgeSecret } : {};
+  const result = await fetchJson(`${base}${route.path}`, {
+    method: route.method,
+    headers,
+    body: route.method === 'POST' ? JSON.stringify(route.body || {}) : undefined,
+  }, 9000);
+  return { ok: result.ok, endpoint: result.url, status: result.status, data: result.data, error: result.error };
+}
+
 async function sendLocalBridgeCommand(base: string, command: string) {
+  const dashboard = await sendDashboardCommand(base, command);
+  if (dashboard.ok) return { ok: true, mode: 'dashboard-api', ...dashboard, attempts: [dashboard] };
+
   const bridgeSecret = process.env.JINBOT_BRIDGE_SECRET || '';
   const headers: Record<string, string> = bridgeSecret ? { 'x-jinbot-secret': bridgeSecret } : {};
   const attempts: FetchResult[] = [];
@@ -162,7 +221,7 @@ async function sendLocalBridgeCommand(base: string, command: string) {
     attempts.push(result);
     if (result.ok) return { ok: true, endpoint: result.url, status: result.status, data: result.data, attempts };
   }
-  return { ok: false, endpoint: null, attempts };
+  return { ok: false, endpoint: null, dashboard, attempts };
 }
 
 export async function GET() {
