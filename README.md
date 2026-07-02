@@ -100,23 +100,15 @@ The local trading layer has been tested as a running desktop process with Telegr
 | Local dashboard | The local dashboard exposes trade settings, farm/trade mode, futures/spot controls, max loss, close position, session PnL, trading volume, wallet balance, open position, and bot status. |
 | Realtime log and trade history | The dashboard records order placed/order filled events, entry/exit direction, price, PnL, paginated trade history, and paginated event logs. This gives judges an audit trail for the local realtime trading loop. |
 
-If adding the screenshots directly to this repo, save them under:
+Screenshot files should live under `docs/screenshots/` with these exact names. Once the PNG files are committed, GitHub renders them below:
 
-```text
-docs/screenshots/telegram-control.png
-docs/screenshots/local-terminal-runtime.png
-docs/screenshots/local-dashboard.png
-docs/screenshots/local-realtime-log.png
-```
-
-Then uncomment or add these Markdown image links:
-
-```md
 ![Telegram control menu](docs/screenshots/telegram-control.png)
+
 ![Local terminal runtime](docs/screenshots/local-terminal-runtime.png)
+
 ![Local dashboard](docs/screenshots/local-dashboard.png)
+
 ![Local realtime log and trade history](docs/screenshots/local-realtime-log.png)
-```
 
 ### Jinbot Cross Signals
 
