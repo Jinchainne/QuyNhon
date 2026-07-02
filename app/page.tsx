@@ -33,6 +33,7 @@ const nav = [
     { id:'futures', label:'Futures Trading', icon:Zap },
     { id:'orders', label:'Orders & Positions', icon:Briefcase },
     { id:'automation', label:'Automation', icon:CalendarClock },
+    { id:'localtrade', label:'Local Trade Bot', icon:Play },
     { id:'jinbot', label:'Jinbot Cross Signals', icon:Bot },
   ]},
   { group:'SYSTEM', items:[
@@ -108,7 +109,7 @@ export default function Page(){
   useEffect(()=>{ load(); },[symbol,interval]);
   useEffect(()=>{ setOrder(o=>({...o, product: active==='spot'?'spot':active==='futures'?'futures':o.product })); },[active]);
   useEffect(()=>{ if(!autoOn || order.schedule==='off') return; const ms:any={ '1m':60000,'5m':300000,'15m':900000,'1h':3600000,'4h':14400000 }; const id=setInterval(()=>runAutomation(), ms[order.frequency]||900000); return ()=>clearInterval(id); },[autoOn,order.schedule,order.frequency,order.product,order.side,order.amount,order.price,order.leverage,symbol,paperMode,serverLiveTrading]);
-  useEffect(()=>{ if(active!=='jinbot') return; loadJinbot(); const id=setInterval(()=>loadJinbot(),15000); return ()=>clearInterval(id); },[active]);
+  useEffect(()=>{ if(active!=='jinbot'&&active!=='localtrade') return; loadJinbot(); const id=setInterval(()=>loadJinbot(),5000); return ()=>clearInterval(id); },[active]);
 
   async function loadJinbot(){
     try{
@@ -259,6 +260,7 @@ export default function Page(){
         {active==='orders' && <OrdersPositions terminal={terminal} execResult={execResult} pendingSpotCloses={pendingSpotCloses} pendingFuturesCloses={pendingFuturesCloses} adminSecret={adminSecret} setAdminSecret={setAdminSecret} wallet={wallet}/>} 
         {active==='portfolio' && <Portfolio wallet={wallet} terminal={terminal}/>} 
         {active==='automation' && <Automation order={order} setOrder={setOrder} autoOn={autoOn} setAutoOn={setAutoOn} runAutomation={runAutomation} autoLog={autoLog} paperMode={paperMode} serverLiveTrading={serverLiveTrading}/>} 
+        {active==='localtrade' && <LocalTradeBotPanel data={jinbot} refresh={loadJinbot} secret={jinbotSecret} setSecret={setJinbotSecret} send={sendJinbotCommand} busy={jinbotBusy} result={jinbotResult}/>} 
         {active==='jinbot' && <JinbotCrossPanel data={jinbot} refresh={loadJinbot} command={jinbotCommand} setCommand={setJinbotCommand} secret={jinbotSecret} setSecret={setJinbotSecret} send={sendJinbotCommand} busy={jinbotBusy} result={jinbotResult}/>} 
         {active==='api' && <ApiHealth health={health}/>} 
         {active==='security' && <SecurityPanel serverLiveTrading={serverLiveTrading}/>} 
@@ -350,6 +352,70 @@ function OrdersPositions({terminal,execResult}:any){ return <div className="grid
 function Portfolio({wallet,terminal}:any){ if(!wallet) return <Empty title="Connect wallet" text="No portfolio or account details are shown until a real wallet is connected."/>; return <div className="grid grid-cols-12 gap-4"><Card className="col-span-12"><h3 className="text-xl font-black">Connected Wallet</h3><p className="break-all text-cyan-200 mt-2">{wallet}</p></Card><Card className="col-span-12"><h3 className="text-xl font-black mb-3">SoDEX Account</h3><pre className="no-data rounded-2xl p-4 max-h-[500px] overflow-auto">{JSON.stringify(terminal?.account||{},null,2)}</pre></Card></div> }
 function Automation({order,setOrder,autoOn,setAutoOn,runAutomation,autoLog,paperMode,serverLiveTrading}:any){ return <Card><h3 className="text-2xl font-black flex gap-2"><CalendarClock/>Automation Center</h3><p className="text-slate-400 mt-2">Run scheduled server previews from the browser; live execution requires Vercel ENV and Live Mode.</p><div className="grid md:grid-cols-6 gap-3 mt-5"><select value={order.schedule} onChange={e=>setOrder({...order,schedule:e.target.value})} className="input"><option value="off">Manual only</option><option value="preview">Auto Preview</option><option value="live">Auto Live if enabled</option></select><select value={order.frequency} onChange={e=>setOrder({...order,frequency:e.target.value})} className="input"><option>1m</option><option>5m</option><option>15m</option><option>1h</option><option>4h</option></select><input value={order.maxNotional} onChange={e=>setOrder({...order,maxNotional:e.target.value})} className="input" placeholder="Max notional"/><select value={order.spotAutoClose} onChange={e=>setOrder({...order,spotAutoClose:e.target.value})} className="input"><option value="off">No spot close</option><option value="random">Spot close 1-3m</option></select><select value={order.futuresAutoClose} onChange={e=>setOrder({...order,futuresAutoClose:e.target.value})} className="input"><option value="off">No futures close</option><option value="time">Futures time close</option></select><button onClick={()=>setAutoOn(!autoOn)} className={`rounded-2xl px-4 font-bold ${autoOn?'bg-rose-600':'bg-emerald-600'}`}>{autoOn?'Stop Auto':'Start Auto'}</button><button onClick={runAutomation} className="rounded-2xl bg-slate-800 px-4 font-bold">Run Now</button><div className="pill rounded-2xl p-3 text-sm">{paperMode?'Paper':'Live'} · {serverLiveTrading?'Server live enabled':'Server live locked'}</div></div><div className="mt-5 grid md:grid-cols-2 gap-3">{autoLog.map((x:any,i:number)=><pre key={i} className="no-data rounded-2xl p-3 text-[11px] max-h-52 overflow-auto">{x.time} · {x.mode}\n{JSON.stringify(x.result,null,2).slice(0,900)}</pre>)}</div></Card> }
 function ApiHealth({health}:any){ return <Card><h3 className="text-xl font-black mb-3">API Health</h3><pre className="no-data rounded-2xl p-5 whitespace-pre-wrap">{JSON.stringify(health||{status:'loading'},null,2)}</pre></Card> }
+
+function LocalTradeBotPanel({data,refresh,secret,setSecret,send,busy,result}:any){
+  const bots = Array.isArray(data?.status?.bots) ? data.status.bots : [];
+  const perps = bots.find((b:any)=>String(b.id||b.marketType||'').toLowerCase().includes('perps')) || bots[0];
+  const spot = bots.find((b:any)=>String(b.id||b.marketType||'').toLowerCase().includes('spot'));
+  const events = Array.isArray(data?.events) ? data.events.slice(-8).reverse() : [];
+  const trades = Array.isArray(data?.trades) ? data.trades.slice(-8).reverse() : [];
+  const running = Boolean(data?.status?.anyRunning || bots.some((b:any)=>b.isRunning));
+  const bridgeReady = Boolean(data?.endpoints?.status || data?.endpoints?.pnl || data?.endpoints?.tradeSettings);
+  const run = (cmd:string) => send(cmd);
+  return <div className="grid grid-cols-12 gap-4">
+    <Card className="col-span-12">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-2xl font-black flex items-center gap-2"><Play/>Local Trade Bot</h3>
+          <p className="text-slate-400 mt-2">Realtime execution is handled by the local JINBOT_SODEX CROSS process; this panel controls its dashboard bridge.</p>
+        </div>
+        <button onClick={refresh} className="pill rounded-2xl px-4 py-3 flex items-center gap-2"><RefreshCw size={16}/>Refresh</button>
+      </div>
+      <div className="grid md:grid-cols-4 gap-3 mt-5">
+        <div className="pill rounded-2xl p-4"><p className="text-xs text-slate-400">RUNTIME</p><b className={bridgeReady?'text-emerald-300':'text-amber-300'}>{bridgeReady?'Local online':'Start local bot'}</b></div>
+        <div className="pill rounded-2xl p-4"><p className="text-xs text-slate-400">BOT STATE</p><b className={running?'text-emerald-300':'text-slate-300'}>{running?'Running':'Stopped'}</b></div>
+        <div className="pill rounded-2xl p-4"><p className="text-xs text-slate-400">SESSION PNL</p><b>{money(data?.pnl?.sessionPnl,false)}</b></div>
+        <div className="pill rounded-2xl p-4"><p className="text-xs text-slate-400">VOLUME</p><b>{money(data?.pnl?.sessionVolume)}</b></div>
+      </div>
+    </Card>
+    <Card className="col-span-12 xl:col-span-4">
+      <h3 className="text-xl font-black mb-3">Controls</h3>
+      <input type="password" value={secret} onChange={e=>setSecret(e.target.value)} className="input" placeholder="JINBOT_PANEL_SECRET / ADMIN_SECRET" autoComplete="off"/>
+      <div className="grid grid-cols-2 gap-2">
+        <button onClick={()=>run('/start_perps')} disabled={busy} className="rounded-xl bg-emerald-600 py-3 font-black">Start Futures</button>
+        <button onClick={()=>run('/stop_perps')} disabled={busy} className="rounded-xl bg-slate-800 py-3 font-black">Stop Futures</button>
+        <button onClick={()=>run('/start_spot')} disabled={busy} className="rounded-xl bg-cyan-700 py-3 font-black">Start Spot</button>
+        <button onClick={()=>run('/stop_spot')} disabled={busy} className="rounded-xl bg-slate-800 py-3 font-black">Stop Spot</button>
+        <button onClick={()=>run('/start_bot')} disabled={busy} className="rounded-xl bg-violet-700 py-3 font-black">Start All</button>
+        <button onClick={()=>run('/stop_bot')} disabled={busy} className="rounded-xl bg-rose-700 py-3 font-black">Stop All</button>
+      </div>
+      <button onClick={()=>run('/close_position')} disabled={busy} className="mt-3 w-full rounded-2xl bg-amber-600 py-3 font-black">Close Futures Position</button>
+      {result&&<pre className="mt-4 no-data rounded-2xl p-3 text-[11px] max-h-72 overflow-auto whitespace-pre-wrap">{JSON.stringify(result,null,2)}</pre>}
+    </Card>
+    <Card className="col-span-12 xl:col-span-4">
+      <h3 className="text-xl font-black mb-3">Bot Status</h3>
+      <MetricTiny label="Futures" value={perps?`${perps.label||perps.id||'Perps'} · ${perps.isRunning?'running':'stopped'}`:'Unavailable'}/>
+      <MetricTiny label="Spot" value={spot?`${spot.label||spot.id||'Spot'} · ${spot.isRunning?'running':'stopped'}`:'Unavailable'}/>
+      <MetricTiny label="Mode" value={data?.status?.mode || data?.tradeSettings?.mode || 'Unavailable'}/>
+      <MetricTiny label="Futures pair" value={data?.tradeSettings?.futuresSymbol || perps?.symbol || 'Unavailable'}/>
+      <MetricTiny label="Spot pair" value={data?.tradeSettings?.spotSymbol || spot?.symbol || 'Unavailable'}/>
+      <MetricTiny label="Leverage" value={data?.tradeSettings?.leverage ? `${data.tradeSettings.leverage}x` : 'Unavailable'}/>
+      <MetricTiny label="Bridge" value={data?.configured?.bridgeUrl || 'http://127.0.0.1:8787'}/>
+    </Card>
+    <Card className="col-span-12 xl:col-span-4">
+      <h3 className="text-xl font-black mb-3">Latest Position</h3>
+      <pre className="no-data rounded-2xl p-3 text-[11px] max-h-96 overflow-auto whitespace-pre-wrap">{JSON.stringify(data?.positions || data?.status?.bots || {status:'No local position data'},null,2)}</pre>
+    </Card>
+    <Card className="col-span-12 xl:col-span-6">
+      <h3 className="text-xl font-black mb-3">Local Events</h3>
+      {events.length?events.map((e:any,i:number)=><div key={i} className="py-2 border-b border-slate-800 text-sm"><b>{e.level||e.type||'EVENT'}</b><p className="text-slate-400">{e.message||e.text||JSON.stringify(e).slice(0,260)}</p></div>):<Empty title="No local events" text="Local dashboard has not returned event data."/>}
+    </Card>
+    <Card className="col-span-12 xl:col-span-6">
+      <h3 className="text-xl font-black mb-3">Local Trades</h3>
+      {trades.length?trades.map((t:any,i:number)=><div key={i} className="py-2 border-b border-slate-800 text-sm"><b>{t.symbol||t.market||t.side||'Trade'}</b><p className="text-slate-400">{JSON.stringify(t).slice(0,260)}</p></div>):<Empty title="No local trades" text="Local trade log has not returned entries."/>}
+    </Card>
+  </div>
+}
 
 function JinbotCrossPanel({data,refresh,command,setCommand,secret,setSecret,send,busy,result}:any){
   const signals = Array.isArray(data?.signals) ? data.signals : [];

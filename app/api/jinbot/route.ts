@@ -13,6 +13,10 @@ const STATUS_PATHS = ['/api/bots/status', '/api/pnl', '/api/control/status', '/a
 const SIGNAL_PATHS = ['/api/signals', '/signals', '/api/latest-signal', '/latest-signal', '/api/cross/signals', '/cross/signals'];
 const POSITION_PATHS = ['/api/position', '/api/positions', '/positions', '/api/orders', '/orders'];
 const COMMAND_PATHS = ['/api/command', '/command', '/api/telegram/command', '/telegram/command', '/api/bot/command'];
+const PNL_PATHS = ['/api/pnl'];
+const TRADE_SETTINGS_PATHS = ['/api/trade-settings'];
+const TRADES_PATHS = ['/api/trades'];
+const EVENTS_PATHS = ['/api/events'];
 
 function getBaseUrl() {
   return (process.env.JINBOT_BRIDGE_URL || process.env.JINBOT_LOCAL_URL || DEFAULT_JINBOT_BASE).replace(/\/$/, '');
@@ -226,10 +230,14 @@ async function sendLocalBridgeCommand(base: string, command: string) {
 
 export async function GET() {
   const base = getBaseUrl();
-  const [status, signals, positions, stateFile] = await Promise.all([
+  const [status, signals, positions, pnl, tradeSettings, trades, events, stateFile] = await Promise.all([
     firstWorking(base, STATUS_PATHS),
     firstWorking(base, SIGNAL_PATHS),
     firstWorking(base, POSITION_PATHS),
+    firstWorking(base, PNL_PATHS, 3500),
+    firstWorking(base, TRADE_SETTINGS_PATHS, 3500),
+    firstWorking(base, TRADES_PATHS, 3500),
+    firstWorking(base, EVENTS_PATHS, 3500),
     readStateFile(),
   ]);
   const httpSignals = asArray(signals.result?.data);
@@ -250,6 +258,10 @@ export async function GET() {
       panelSecret: Boolean(process.env.JINBOT_PANEL_SECRET || process.env.ADMIN_SECRET),
     },
     status: status.result?.data || stateFile.data || null,
+    pnl: pnl.result?.data || null,
+    tradeSettings: tradeSettings.result?.data || null,
+    trades: trades.result?.data || null,
+    events: events.result?.data || null,
     positions: positions.result?.data || null,
     signals: signalRows,
     signalSource: httpSignals.length ? 'local-http' : fileSignals.length ? 'state-file' : 'unavailable',
@@ -257,6 +269,10 @@ export async function GET() {
       status: status.result?.ok ? status.result.url : null,
       signals: signals.result?.ok ? signals.result.url : null,
       positions: positions.result?.ok ? positions.result.url : null,
+      pnl: pnl.result?.ok ? pnl.result.url : null,
+      tradeSettings: tradeSettings.result?.ok ? tradeSettings.result.url : null,
+      trades: trades.result?.ok ? trades.result.url : null,
+      events: events.result?.ok ? events.result.url : null,
       stateFile: stateFile.ok ? stateFile.fileName : null,
     },
     diagnostics: {
