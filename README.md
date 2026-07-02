@@ -283,12 +283,6 @@ The realtime trade bot is intentionally a separate local process. Start it only 
 powershell -ExecutionPolicy Bypass -File scripts\start-jinbot-local.ps1
 ```
 
-Default archive path used by the script:
-
-```text
-E:\TOOL FULL 03-1-2026\SOSO TRADE API\JINBOT_SODEX CROSS.zip
-```
-
 The script extracts the bot under `.local`, sets:
 
 ```env
